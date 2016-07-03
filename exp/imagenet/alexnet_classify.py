@@ -7,7 +7,7 @@ import glob
 def display_results(image_paths, probs):
     '''Displays the classification results given the class probability for each image'''
     # Get a list of ImageNet class labels
-    with open('exp/imagenet-classes.txt', 'rb') as infile:
+    with open('imagenet-classes.txt', 'rb') as infile:
         class_labels = map(str.strip, infile.readlines())
     # Pick the class with the highest confidence for each image
     class_indices = np.argmax(probs, axis=1)
@@ -27,26 +27,19 @@ input_data_3 = tf.placeholder(tf.float32, shape=(None, 227, 227, 3))
 
 
 
-with tf.variable_scope("towers") as scope:
-    net = AlexNet({'data':input_data})
-    scope.reuse_variables()
-    net_2 = AlexNet({'data':input_data_2})
-    net_3 = AlexNet({'data':input_data_3})
-
-
+net = AlexNet({'data':input_data})
 
 print 'Initial Variable List:'
 print [tt.name for tt in tf.trainable_variables()]
 
-image_paths = glob.glob('exp/data/*.JPEG')
+image_paths = glob.glob('data/*.JPEG')
 image_reader = ImageReader(image_paths=image_paths, batch_size=100)
 
 with tf.Session() as sesh:
     # load model weights
-    model_data = 'exp/alexnet_weights.npy'
+    model_data = 'alexnet_weights.npy'
 
-    with tf.variable_scope("towers") as scope:
-        net.load(model_data, sesh)
+    net.load(model_data, sesh)
 
     # start image reading
     coordinator = tf.train.Coordinator()

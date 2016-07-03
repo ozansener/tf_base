@@ -89,10 +89,9 @@ class Network(object):
         ident = sum(t.startswith(prefix) for t, _ in self.layers.items()) + 1
         return '%s_%d' % (prefix, ident)
 
-    def make_var(self, name, shape):
+    def make_var(self, name, shape, init_func):
         '''Creates a new TensorFlow variable.'''
-        return tf.get_variable(name, shape, trainable=self.trainable)
-
+        return tf.get_variable(name, shape, trainable=self.trainable, initializer=init_func)
     def validate_padding(self, padding):
         '''Verifies that the padding is one of the supported ones.'''
         assert padding in ('SAME', 'VALID')
@@ -120,7 +119,7 @@ class Network(object):
         # Convolution for a given input and kernel
         convolve = lambda i, k: tf.nn.conv2d(i, k, [1, s_h, s_w, 1], padding=padding)
         with tf.variable_scope(name) as scope:
-            kernel = self.make_var('weights', shape=[k_h, k_w, c_i / group, c_o])
+            kernel = self.make_var('weights', shape=[k_h, k_w, c_i / group, c_o], init_func =tf.truncated_normal_initializer(stddev = 0.1))
             if group == 1:
                 # This is the common-case. Convolve the input without any further complications.
                 output = convolve(input, kernel)
@@ -133,7 +132,7 @@ class Network(object):
                 output = tf.concat(3, output_groups)
             # Add the biases
             if biased:
-                biases = self.make_var('biases', [c_o])
+                biases = self.make_var('biases', [c_o], init_func=tf.constant_initializer(0.1))
                 output = tf.nn.bias_add(output, biases)
             if relu:
                 # ReLU non-linearity
@@ -172,6 +171,10 @@ class Network(object):
                                                   name=name)
 
     @layer
+    def reshape(self, input, new_size, name):
+        return tf.reshape(input, new_size)
+
+    @layer
     def concat(self, inputs, axis, name):
         return tf.concat(concat_dim=axis, values=inputs, name=name)
 
@@ -191,8 +194,8 @@ class Network(object):
                 feed_in = tf.reshape(input, [-1, dim])
             else:
                 feed_in, dim = (input, input_shape[-1].value)
-            weights = self.make_var('weights', shape=[dim, num_out])
-            biases = self.make_var('biases', [num_out])
+            weights = self.make_var('weights', shape=[dim, num_out], init_func=tf.truncated_normal_initializer(stddev = 0.1))
+            biases = self.make_var('biases', [num_out], init_func=tf.constant_initializer(0.1))
             op = tf.nn.relu_layer if relu else tf.nn.xw_plus_b
             fc = op(feed_in, weights, biases, name=scope.name)
             return fc
