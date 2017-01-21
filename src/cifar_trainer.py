@@ -14,13 +14,15 @@ class Cifar10Trainer(object):
         self.pred = net.get_output()
 
         self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(self.pred, self.ph_labels), 0)
-        self.train_op = tf.train.RMSPropOptimizer(0.001).minimize(self.loss)
+        self.train_op = tf.train.AdamOptimizer(learning_rate=0.001).minimize(self.loss)
         
         correct_prediction = tf.equal(tf.argmax(self.pred, 1), tf.argmax(self.ph_labels, 1))
         self.accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
 
-        tf.scalar_summary("training accuracy", self.accuracy)
-        tf.scalar_summary("loss", self.loss)
+        tf.summary.scalar("summary_training_accuracy", self.accuracy)
+        tf.summary.scalar("summary_loss", self.loss)
+        #tf.summary.image("summary_images", self.ph_images, max_outputs=5)
+        #tf.summary.histogram("summary_hist_im", self.ph_images)
         self.summaries = tf.summary.merge_all()
 
     def compute_accuracy(self, images, labels, session):

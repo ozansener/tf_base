@@ -10,9 +10,6 @@ import glob
 from six.moves import urllib
 import numpy
 import cPickle
-
-import pdb
-
 SOURCE_URL = 'https://www.cs.toronto.edu/~kriz/'
 
 def maybe_download(filename, work_directory):
@@ -38,11 +35,11 @@ def extract_data(work_directory, one_hot):
         with open(fil, 'rb') as f:
             dat_dict = cPickle.load(f)
             ser_dat = dat_dict['data']
-            print(ser_dat.shape)
-            images[i*10000:(i+1)*10000,:,:,0] = ser_dat[:,0:1024].reshape((-1,32,32))
-            images[i*10000:(i+1)*10000,:,:,1] = ser_dat[:,1024:2048].reshape((-1,32,32))
-            images[i*10000:(i+1)*10000,:,:,2] = ser_dat[:,2048:3072].reshape((-1,32,32))
+            images[i*10000:(i+1)*10000,:,:,0] = ser_dat[:,0:1024].reshape((-1,32,32)).astype('float32') - 125.0
+            images[i*10000:(i+1)*10000,:,:,1] = ser_dat[:,1024:2048].reshape((-1,32,32)).astype('float32') - 123.0
+            images[i*10000:(i+1)*10000,:,:,2] = ser_dat[:,2048:3072].reshape((-1,32,32)).astype('float32') - 114.0
             labels[i*10000:(i+1)*10000] = dat_dict['labels']
+
 
     if one_hot:
         return images, dense_to_one_hot(labels)
