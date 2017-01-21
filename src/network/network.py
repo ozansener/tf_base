@@ -31,7 +31,7 @@ def layer(op):
 
 class Network(object):
 
-    def __init__(self, inputs, trainable=True):
+    def __init__(self, inputs, keep_prob=None, trainable=True):
         # The input nodes for this network
         self.inputs = inputs
         # The current list of terminal nodes
@@ -40,11 +40,19 @@ class Network(object):
         self.layers = dict(inputs)
         # If true, the resulting variables are set as trainable
         self.trainable = trainable
-        self.setup()
+        if keep_prob:
+            self.setup_with_dropout(keep_prob)
+        else:
+            self.setup()
 
     def setup(self):
         '''Construct the network. '''
         raise NotImplementedError('Must be implemented by the subclass.')
+
+    def setup_with_dropout(self, keep_prob):
+        '''Construct the network. '''
+        raise NotImplementedError('Must be implemented by the subclass.')
+
 
     def load(self, data_path, session, ignore_missing=False):
         '''Load network weights.

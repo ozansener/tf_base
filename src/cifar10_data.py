@@ -94,7 +94,10 @@ def extract_train_data(work_directory, one_hot, hold_out_size):
                     hold_out_labels[i*10000:(i+1)*10000] = dat_dict['labels']
 
     if one_hot:
-        return images, dense_to_one_hot(labels), hold_out_images, dense_to_one_hot(hold_out_labels)
+        if hold_out_size > 0: 
+            return images, dense_to_one_hot(labels), hold_out_images, dense_to_one_hot(hold_out_labels)
+        else:
+            return images, dense_to_one_hot(labels), None, None
     else:
         return images, labels, hold_out_images, hold_out_labels
 
