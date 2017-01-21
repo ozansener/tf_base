@@ -167,7 +167,7 @@ class DataSet(object):
         return self._images[start:end], self._labels[start:end]
 
 
-def read_data_sets(train_dir, one_hot=False):
+def read_data_sets(train_dir, one_hot=False, hold_out_size=0):
     class DataSets(object):
         pass
 
@@ -176,7 +176,14 @@ def read_data_sets(train_dir, one_hot=False):
     DATA_SET_NAME = "cifar-10-python.tar.gz"
     local_file = maybe_download(DATA_SET_NAME,train_dir)
     im,l,h_im,h_l = extract_train_data(train_dir, one_hot, hold_out_size=0)
-    data_sets.train = DataSet(im,l)
-    im_t,l_t = extract_test_data(train_dir, one_hot)
-    data_sets.test = DataSet(im_t,l_t)
+    if hold_out_size > 0:
+        data_sets.train = DataSet(h_im,h_l)
+        data_sets.hold_out = DataSet(im,l)
+        im_t,l_t = extract_test_data(train_dir, one_hot)
+        data_sets.test = DataSet(im_t,l_t)
+    else:
+        data_sets.train = DataSet(im,l)
+        im_t,l_t = extract_test_data(train_dir, one_hot)
+        data_sets.test = DataSet(im_t,l_t)
+
     return data_sets
