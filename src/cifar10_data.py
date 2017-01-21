@@ -7,12 +7,11 @@ import gzip
 import os
 import glob
 
+from six.moves import urllib
 import numpy
 import cPickle
-    fo = open(file, 'rb')
-    dict = cPickle.load(fo)
-    fo.close()
-    return dict
+
+import pdb
 
 SOURCE_URL = 'https://www.cs.toronto.edu/~kriz/'
 
@@ -21,11 +20,12 @@ def maybe_download(filename, work_directory):
     if not os.path.exists(work_directory):
         os.mkdir(work_directory)
     filepath = os.path.join(work_directory, filename)
+    print(filepath)
     if not os.path.exists(filepath):
         filepath, _ = urllib.request.urlretrieve(SOURCE_URL + filename, filepath)
         statinfo = os.stat(filepath)
         print('Succesfully downloaded', filename, statinfo.st_size, 'bytes.')
-    os.system('tar xvzf '+filename)
+        os.system('tar xvzf '+filename)
     return work_directory
 
 def extract_data(work_directory, one_hot):
@@ -34,14 +34,15 @@ def extract_data(work_directory, one_hot):
     num_images = len(data_files)*10000;
     images = numpy.zeros((num_images, 32,32,3))
     labels = numpy.zeros((num_images))
-    for fil in data_files:
+    for i,fil in enumerate(data_files):
         with open(fil, 'rb') as f:
             dat_dict = cPickle.load(f)
             ser_dat = dat_dict['data']
-            images[i*10000:(i+1)*10000,:,:,0] = ser_dat[0:1024].reshape((32,32))
-            images[i*10000:(i+1)*10000,:,:,1] = ser_dat[1024:2048].reshape((32,32))
-            images[i*10000:(i+1)*10000,:,:,2] = ser_dat[2048:3072].reshape((32,32))
-            labels[i*10000:(i+1)*10000,:] = dat_dict['labels']
+            print(ser_dat.shape)
+            images[i*10000:(i+1)*10000,:,:,0] = ser_dat[:,0:1024].reshape((-1,32,32))
+            images[i*10000:(i+1)*10000,:,:,1] = ser_dat[:,1024:2048].reshape((-1,32,32))
+            images[i*10000:(i+1)*10000,:,:,2] = ser_dat[:,2048:3072].reshape((-1,32,32))
+            labels[i*10000:(i+1)*10000] = dat_dict['labels']
 
     if one_hot:
         return images, dense_to_one_hot(labels)
@@ -54,7 +55,7 @@ def dense_to_one_hot(labels_dense, num_classes=10):
     num_labels = labels_dense.shape[0]
     index_offset = numpy.arange(num_labels) * num_classes
     labels_one_hot = numpy.zeros((num_labels, num_classes))
-    labels_one_hot.flat[index_offset + labels_dense.ravel()] = 1
+    labels_one_hot.flat[index_offset + labels_dense.astype(int).ravel()] = 1
     return labels_one_hot
 
 
@@ -130,7 +131,7 @@ def read_data_sets(train_dir, one_hot=False):
 
     DATA_SET_NAME = "cifar-10-python.tar.gz"
     local_file = maybe_download(DATA_SET_NAME,train_dir)
-    im,l = extract_data(local_file, one_hot)
+    im,l = extract_data(train_dir, one_hot)
     data_sets.train = DataSet(im,l)
 
     return data_sets
