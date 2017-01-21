@@ -25,7 +25,26 @@ def maybe_download(filename, work_directory):
         os.system('tar xvzf '+filename)
     return work_directory
 
-def extract_data(work_directory, one_hot):
+def extract_test_data(work_directory, one_hot):
+    print('Extracting', work_directory)
+    data_files = glob.glob(work_directory+"/test_batch*")
+    num_images = len(data_files)*10000;
+    images = numpy.zeros((num_images, 32,32,3))
+    labels = numpy.zeros((num_images))
+    for i,fil in enumerate(data_files):
+        with open(fil, 'rb') as f:
+            dat_dict = cPickle.load(f)
+            ser_dat = dat_dict['data']
+            images[i*10000:(i+1)*10000,:,:,0] = ser_dat[:,0:1024].reshape((-1,32,32)).astype('float32') - 125.0
+            images[i*10000:(i+1)*10000,:,:,1] = ser_dat[:,1024:2048].reshape((-1,32,32)).astype('float32') - 123.0
+            images[i*10000:(i+1)*10000,:,:,2] = ser_dat[:,2048:3072].reshape((-1,32,32)).astype('float32') - 114.0
+            labels[i*10000:(i+1)*10000] = dat_dict['labels']
+    if one_hot:
+        return images, dense_to_one_hot(labels)
+    else:
+        return images, labels
+
+def extract_train_data(work_directory, one_hot):
     print('Extracting', work_directory)
     data_files = glob.glob(work_directory+"/data_batch_*")
     num_images = len(data_files)*10000;
@@ -128,7 +147,8 @@ def read_data_sets(train_dir, one_hot=False):
 
     DATA_SET_NAME = "cifar-10-python.tar.gz"
     local_file = maybe_download(DATA_SET_NAME,train_dir)
-    im,l = extract_data(train_dir, one_hot)
+    im,l = extract_train_data(train_dir, one_hot)
     data_sets.train = DataSet(im,l)
-
+    im_t,l_t = extract_test_data(train_dir, one_hot)
+    data_sets.test = DataSet(im_t,l_t)
     return data_sets
