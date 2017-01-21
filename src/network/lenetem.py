@@ -1,5 +1,6 @@
 from network import Network
 
+
 class LeNetEm(Network):
     def setup(self):
         (self.feed('data')
