@@ -48,6 +48,8 @@ def extract_test_data(work_directory, one_hot):
 
 def extract_train_data(work_directory, one_hot, hold_out_size):
     print('Extracting', work_directory)
+    print("Hold Out Size", hold_out_size)
+
     data_files = glob.glob(work_directory+"/data_batch_*")
     num_images = len(data_files)*10000;
     images = numpy.zeros((num_images - hold_out_size, 32,32,3))
@@ -56,6 +58,9 @@ def extract_train_data(work_directory, one_hot, hold_out_size):
     if hold_out_size > 0:
         hold_out_images = numpy.zeros((hold_out_size, 32,32,3))
         hold_out_labels = numpy.zeros((hold_out_size))
+    else:
+        hold_out_images = None
+        hold_out_labels = None
 
     for i, fil in enumerate(data_files):
         with open(fil, 'rb') as f:
@@ -72,19 +77,19 @@ def extract_train_data(work_directory, one_hot, hold_out_size):
                     # fill entire holdout set and remaining images
                     hold_out_size_r = hold_out_size - i*10000
                     hold_out_images[i*10000:i*10000+hold_out_size_r,:,:,0] = ser_dat[0:hold_out_size_r,0:1024].reshape((-1,32,32)).astype('float32') - 125.0
-                    hold_out_images[i*10000:i*10000+hold_out_size_r:,:,1] = ser_dat[0:hold_out_size_r,1024:2048].reshape((-1,32,32)).astype('float32') - 123.0
+                    hold_out_images[i*10000:i*10000+hold_out_size_r,:,:,1] = ser_dat[0:hold_out_size_r,1024:2048].reshape((-1,32,32)).astype('float32') - 123.0
                     hold_out_images[i*10000:i*10000+hold_out_size_r,:,:,2] = ser_dat[0:hold_out_size_r,2048:3072].reshape((-1,32,32)).astype('float32') - 114.0
                     hold_out_labels[i*10000:i*10000+hold_out_size_r] = dat_dict['labels'][0:hold_out_size_r]
 
-                    remaining_size = 10000 - hold_out_size
+                    remaining_size = 10000 - hold_out_size_r
                     images[0:remaining_size,:,:,0] = ser_dat[hold_out_size_r:10000,0:1024].reshape((-1,32,32)).astype('float32') - 125.0
                     images[0:remaining_size,:,:,1] = ser_dat[hold_out_size_r:10000,1024:2048].reshape((-1,32,32)).astype('float32') - 123.0
                     images[0:remaining_size,:,:,2] = ser_dat[hold_out_size_r:10000,2048:3072].reshape((-1,32,32)).astype('float32') - 114.0
-                    labels[0:remaining_size] = dat_dict['labels']
+                    labels[0:remaining_size] = dat_dict['labels'][hold_out_size_r:10000]
                 else:
                     # fill part of the holdout set
                     hold_out_images[i*10000:(i+1)*10000,:,:,0] = ser_dat[:,0:1024].reshape((-1,32,32)).astype('float32') - 125.0
-                    hold_out_images[i*10000:(i+1)*10000:,:,1] = ser_dat[:,1024:2048].reshape((-1,32,32)).astype('float32') - 123.0
+                    hold_out_images[i*10000:(i+1)*10000,:,:,1] = ser_dat[:,1024:2048].reshape((-1,32,32)).astype('float32') - 123.0
                     hold_out_images[i*10000:(i+1)*10000,:,:,2] = ser_dat[:,2048:3072].reshape((-1,32,32)).astype('float32') - 114.0
                     hold_out_labels[i*10000:(i+1)*10000] = dat_dict['labels']
 
@@ -175,7 +180,7 @@ def read_data_sets(train_dir, one_hot=False, hold_out_size=0):
 
     DATA_SET_NAME = "cifar-10-python.tar.gz"
     local_file = maybe_download(DATA_SET_NAME,train_dir)
-    im,l,h_im,h_l = extract_train_data(train_dir, one_hot, hold_out_size=0)
+    im,l,h_im,h_l = extract_train_data(train_dir, one_hot, hold_out_size)
     if hold_out_size > 0:
         data_sets.train = DataSet(h_im,h_l)
         data_sets.hold_out = DataSet(im,l)

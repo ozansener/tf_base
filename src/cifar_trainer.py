@@ -6,19 +6,21 @@ class Cifar10Trainer(object):
     """
     Train a network using MNIST data or a dataset following 
     """
-    def __init__(self, learning_rate):
+    def __init__(self, learning_rate, device_name):
         self.ph_images = tf.placeholder(tf.float32, [None, 32, 32, 3])
         self.ph_labels = tf.placeholder(tf.float32, [None, 10])
 
-        net = VGG16({'data':self.ph_images})
-        self.pred = net.get_output()
-        self.sm_pred = tf.nn.softmax(self.pred)
-
-        self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(self.pred, self.ph_labels), 0)
-        self.train_op = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(self.loss)
+        with tf.device(device_name):
+            net = VGG16({'data':self.ph_images})
         
-        correct_prediction = tf.equal(tf.argmax(self.sm_pred, 1), tf.argmax(self.ph_labels, 1))
-        self.accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
+            self.pred = net.get_output()
+            self.sm_pred = tf.nn.softmax(self.pred)
+
+            self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(self.pred, self.ph_labels), 0)
+            self.train_op = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(self.loss)
+        
+            correct_prediction = tf.equal(tf.argmax(self.sm_pred, 1), tf.argmax(self.ph_labels, 1))
+            self.accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
 
         tf.summary.scalar("summary_training_accuracy", self.accuracy)
         tf.summary.scalar("summary_loss", self.loss)

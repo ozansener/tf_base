@@ -20,8 +20,10 @@ def read_params(file_name):
 
 @click.command()
 @click.option('--hold_out', default=0, help='Training data size.')
-def train(hold_out):
+@click.option('--dev_name', default='/gpu:0', help='Device name to use.')
+def train(hold_out, dev_name):
     hold_out_s = int(hold_out)
+    print hold_out_s
     train_data = cifar10_data.read_data_sets('./data/', one_hot=True, hold_out_size=hold_out_s)
 
     test_im = train_data.test.images
@@ -29,8 +31,8 @@ def train(hold_out):
 
     params, str_v = read_params('settings.json')
 
-    with tf.Session() as sesh:
-        cifar_train = Cifar10Trainer(learning_rate=params.learning_rate)
+    with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sesh:
+        cifar_train = Cifar10Trainer(learning_rate=params.learning_rate, device_name=dev_name)
         print 'Initial Variable List:'
         print [tt.name for tt in tf.trainable_variables()]
         init = tf.global_variables_initializer()
