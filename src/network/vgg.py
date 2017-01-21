@@ -23,5 +23,5 @@ class VGG16(Network):
              .conv(3, 3, 512, 1, 1, name='conv5_3')
              .max_pool(2, 2, 2, 2, name='pool5')
              .fc(512, name='fc6')
-             .fc(10, relu=False, name='fc7')
-             .softmax(name='prob'))
+             .fc(10, relu=False, name='fc7'))
+#             .softmax(name='prob'))
