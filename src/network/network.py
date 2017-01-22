@@ -40,7 +40,7 @@ class Network(object):
         self.layers = dict(inputs)
         # If true, the resulting variables are set as trainable
         self.trainable = trainable
-        if keep_prob:
+        if keep_prob is not None:
             self.setup_with_dropout(keep_prob)
         else:
             self.setup()

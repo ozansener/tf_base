@@ -24,5 +24,7 @@ class VGG16Dropout(Network):
              .max_pool(2, 2, 2, 2, name='pool5')
              .fc(512, name='fc6')
              .dropout(keep_prob, name='dropout')
-             .fc(10, relu=False, name='fc7'))
+             .fc(512, name='fc7')
+             .dropout(keep_prob, name='dropout') 
+             .fc(10, relu=False, name='fc8'))
 #             .softmax(name='prob'))

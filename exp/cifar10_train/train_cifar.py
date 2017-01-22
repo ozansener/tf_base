@@ -32,7 +32,7 @@ def train(hold_out, dev_name):
 
     params, str_v = read_params('settings.json')
 
-    with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sesh:
+    with tf.Session() as sesh:
         cifar_train = Cifar10Trainer(learning_rate=params.learning_rate, device_name=dev_name, isdropout=params.dropout)
         print 'Initial Variable List:'
         print [tt.name for tt in tf.trainable_variables()]
@@ -43,7 +43,8 @@ def train(hold_out, dev_name):
 
         for batch_id in range(200000):
             im, l = train_data.train.next_batch(params.batch_size)
-            top = cifar_train.train_step(im, l, sesh)
+            kp = 0.5
+            top = cifar_train.train_step(im, l, sesh, kp)
 
             if batch_id %10 == 0:
                 loss, summ = cifar_train.summary_step(im, l, sesh)

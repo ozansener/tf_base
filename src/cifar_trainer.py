@@ -12,8 +12,9 @@ class Cifar10Trainer(object):
 
         self.keep_prob = tf.placeholder(tf.float32)
         
-        with tf.device(device_name):
-            if is dropout:
+        if True:
+        #with tf.device(device_name):
+            if not isdropout:
                 net = VGG16({'data':self.ph_images})
             else:
                 net = VGG16Dropout({'data':self.ph_images}, keep_prob=self.keep_prob)
@@ -21,7 +22,10 @@ class Cifar10Trainer(object):
             self.pred = net.get_output()
             self.sm_pred = tf.nn.softmax(self.pred)
 
-            self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(self.pred, self.ph_labels), 0)
+            vars   = tf.trainable_variables() 
+            self.l2_loss  = tf.add_n([ tf.nn.l2_loss(v) for v in vars if 'bias' not in v.name ]) * 0.002
+
+            self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(self.pred, self.ph_labels), 0) + self.l2_loss
             self.train_op = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(self.loss)
         
             correct_prediction = tf.equal(tf.argmax(self.sm_pred, 1), tf.argmax(self.ph_labels, 1))
@@ -35,16 +39,17 @@ class Cifar10Trainer(object):
         self.test_summary = tf.summary.scalar("summary_test_accuracy", self.accuracy) 
  
     def compute_accuracy(self, images, labels, session):
-        acc = session.run(self.accuracy, feed_dict={self.ph_images: images, self.ph_labels:labels})
+        acc = session.run(self.accuracy, feed_dict={self.ph_images: images, self.ph_labels:labels, self.keep_prob:1.0})
         return acc
 
-    def train_step(self, images, labels, session):
-        train_op = session.run([self.train_op], feed_dict={self.ph_images: images, self.ph_labels: labels, self.keep_prob:0.5})
+    def train_step(self, images, labels, session, kp):
+        train_op = session.run([self.train_op], feed_dict={self.ph_images: images, self.ph_labels: labels, self.keep_prob:kp})
         return train_op
 
     def summary_step(self, images, labels, session):
         summ, loss = session.run([self.summaries, self.loss], feed_dict={self.ph_images: images, self.ph_labels: labels, self.keep_prob:1.0})
+        return loss, summ
 
     def test_step(self, images, labels, session):
-        acc, summ = session.run([self.accuracy, self.test_summary], feed_dict={self.ph_images: images, self.ph_labels: labels, self_keep_prob:0.5})
+        acc, summ = session.run([self.accuracy, self.test_summary], feed_dict={self.ph_images: images, self.ph_labels: labels, self.keep_prob:1.0})
         return acc, summ
