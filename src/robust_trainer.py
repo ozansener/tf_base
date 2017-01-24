@@ -15,25 +15,22 @@ class RobustTrainer(object):
         :return:
         """
         self.batch_size = 128
-
-        self.actual_network = Learner()
-        self.adverserial_network = Adversery()
-
+        dim = 512
         self.ph_images = tf.placeholder(tf.float32, [None, 32, 32, 3])
         self.ph_labels = tf.placeholder(tf.float32, [None, 10])
-        self.ph_features = tf.placeholder(tf.float32, [None, 1024])
+        self.ph_features = tf.placeholder(tf.float32, [None, dim])
         self.ph_per_image_loss = tf.placeholder(tf.float32, [None, 1])
         self.keep_prob = tf.placeholder(tf.float32)
 
         real_net = VGG16Robust({'data': self.ph_images})
-        self.features = real_net.layers['feat']
+        self.features = tf.reshape(real_net.layers['feat'],[-1, dim])
         real_pred = real_net.get_output()
         real_pred_sm = tf.nn.softmax(real_pred)
 
         real_net_vars = tf.trainable_variables()
         real_l2_loss = tf.add_n([tf.nn.l2_loss(v) for v in real_net_vars if 'bias' not in v.name ]) * 0.002
 
-        self.per_image_loss = tf.nn.softmax_cross_entropy_with_logits(real_pred, self.ph_labels),
+        self.per_image_loss = tf.nn.softmax_cross_entropy_with_logits(real_pred, self.ph_labels)
         self.real_loss = tf.reduce_mean(self.per_image_loss , 0)  + real_l2_loss
         self.real_train_op = tf.train.AdamOptimizer(learning_rate=learning_rate_net).minimize(self.real_loss)
 
@@ -55,34 +52,35 @@ class RobustTrainer(object):
 
         #sh_pred: num_examplesx1 adv_out num_example,1
         self.adv_loss = tf.reduce_mean(tf.multiply(self.ph_per_image_loss, self.adv_dist),0) - adv_l2_loss
-        self.adv_train_op = tf.train.AdamOptimizer(learning_rate=learning_rate_adv).maximize(self.adv_loss)
+        self.adv_train_op = tf.train.AdamOptimizer(learning_rate=learning_rate_adv).minimize((-1)*self.adv_loss)
 
     def assign_batch(self, large_batch):
         self.large_batch = large_batch
 
     @staticmethod
     def sample_with_replacement(large_batch, loss_estimates, batch_size, gamma=0.5):
-        assert gamma < 1.0
+        assert gamma <= 1.0
         # bimodal probabilities
-        num_examples = large_batch.shape[0]
+        num_examples = large_batch['images'].shape[0]
         uniform_prob = 1.0 / num_examples
-        uniform_prob_list = numpy.ones(num_examples) * uniform_prob
+        uniform_prob_list = numpy.ones((num_examples,1)) * uniform_prob
         bimodal_dist = (1-gamma) * loss_estimates + gamma * uniform_prob
-        choices = numpy.random.choice(num_examples, batch_size, replace=True, p=bimodal_dist)
+        bimodal_dist_flat = bimodal_dist[:,0]
+        choices = numpy.random.choice(num_examples, batch_size, replace=True, p=bimodal_dist_flat)
         small_batch = {'images':large_batch['images'][choices], 'labels':large_batch['labels'][choices]}
         return small_batch
 
     def learning_step(self, session, gamma):
         # this is the learning
-        feat_values, per_im_loss = session.run([self.features, self.per_image_loss],
+        feat_values, per_im_loss_d = session.run([self.features, self.per_image_loss],
                                                feed_dict={self.ph_images: self.large_batch['images'],
                                                           self.ph_labels: self.large_batch['labels']})
 
+        per_im_loss = per_im_loss_d.reshape((per_im_loss_d.shape[0],1))
         # update the discriminator
         loss_estimates, _ = session.run([self.adv_dist, self.adv_train_op],
                                         feed_dict={self.ph_features:feat_values,
                                                    self.ph_per_image_loss:per_im_loss})
-
 
         small_batch = RobustTrainer.sample_with_replacement(self.large_batch,
                                                             loss_estimates,

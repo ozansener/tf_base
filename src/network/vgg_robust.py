@@ -32,4 +32,5 @@ class VGG16Adversery(Network):
     def setup(self):
         (self.feed('net_features')
              .fc(512, name='adv_fc1')
-             .fc(512, name='adv_fc2'))
+             .fc(512, name='adv_fc2')
+             .fc(1, name='adv_fc3'))
