@@ -23,7 +23,6 @@ class VGG16Dropout(Network):
              .conv(3, 3, 512, 1, 1, name='conv5_3')
              .max_pool(2, 2, 2, 2, name='pool5')
              .fc(512, name='fc6')
-             .dropout(keep_prob, name='dropout')
              .fc(512, name='fc7')
              .dropout(keep_prob, name='dropout') 
              .fc(10, relu=False, name='fc8'))

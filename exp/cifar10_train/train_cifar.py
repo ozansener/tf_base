@@ -43,7 +43,13 @@ def train(hold_out, dev_name):
 
         for batch_id in range(200000):
             im, l = train_data.train.next_batch(params.batch_size)
-            kp = 0.5
+            if batch_id < 500:
+                kp = 1.0
+            elif batch_id < 20000:
+                kp = 0.9
+            else:
+                kp = 0.8
+
             top = cifar_train.train_step(im, l, sesh, kp)
 
             if batch_id %10 == 0:
