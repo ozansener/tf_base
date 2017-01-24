@@ -39,10 +39,11 @@ def train(hold_out, dev_name):
         init = tf.global_variables_initializer()
         sesh.run(init)
         saver = tf.train.Saver(max_to_keep=100)
-        sum_writer = tf.summary.FileWriter("./dumps_hold_out_{}__{}/".format(hold_out_s,str_v), sesh.graph)
+        sum_writer = tf.summary.FileWriter("./dumps_rebost__hold_out_{}__{}/".format(hold_out_s,str_v), sesh.graph)
 
+        im, l = train_data.train.next_batch(params.batch_size*8)  # Sample a boosted set    
         for batch_id in range(200000):
-            im, l = train_data.train.next_batch(params.batch_size*8)  # Sample a boosted set
+            #im, l = train_data.train.next_batch(params.batch_size*8)  # Sample a boosted set
             if batch_id < 500:
                 kp = 1.0
             elif batch_id < 20000:
@@ -55,9 +56,10 @@ def train(hold_out, dev_name):
             if batch_id < 10000:
                 gamma = 1.0
             else:
-                gamma = 0.0
+                gamma = 0.5
 
-            robust_cifar_train.learning_step(sesh, gamma)
+            d =  robust_cifar_train.learning_step(sesh, gamma,batch_id)
+            sum_writer.add_summary(d, batch_id)
 
             if batch_id %10 == 0:
                 loss, summ = robust_cifar_train.summary_step(im, l, sesh)

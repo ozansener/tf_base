@@ -12,8 +12,7 @@ class Cifar10Trainer(object):
 
         self.keep_prob = tf.placeholder(tf.float32)
         
-        if True:
-        #with tf.device(device_name):
+        with tf.device(device_name):
             if not isdropout:
                 net = VGG16({'data':self.ph_images})
             else:

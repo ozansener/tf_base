@@ -31,13 +31,15 @@ def layer(op):
 
 class Network(object):
 
-    def __init__(self, inputs, keep_prob=None, trainable=True):
+    def __init__(self, inputs, keep_prob=None, trainable=True, phase=None):
         # The input nodes for this network
         self.inputs = inputs
         # The current list of terminal nodes
         self.terminals = []
         # Mapping from layer names to layers
         self.layers = dict(inputs)
+        # which phase training or testing
+        self.phase=phase
         # If true, the resulting variables are set as trainable
         self.trainable = trainable
         if keep_prob is not None:
@@ -191,7 +193,7 @@ class Network(object):
         return tf.add_n(inputs, name=name)
 
     @layer
-    def fc(self, input, num_out, name, relu=True):
+    def fc(self, input, num_out, name, relu=True, with_bn=False):
         with tf.variable_scope(name) as scope:
             input_shape = input.get_shape()
             if input_shape.ndims == 4:
@@ -204,8 +206,21 @@ class Network(object):
                 feed_in, dim = (input, input_shape[-1].value)
             weights = self.make_var('weights', shape=[dim, num_out], init_func=tf.truncated_normal_initializer(stddev = 0.1))
             biases = self.make_var('biases', [num_out], init_func=tf.constant_initializer(0.1))
-            op = tf.nn.relu_layer if relu else tf.nn.xw_plus_b
-            fc = op(feed_in, weights, biases, name=scope.name)
+            
+            fo = tf.matmul(feed_in, weights) + biases
+
+            if with_bn and relu:
+                bnfo = tf.contrib.layers.batch_norm(fo, 
+                                          center=True, scale=True, 
+                                          is_training=self.phase,
+                                          scope='bn')
+                fc = tf.nn.relu(bnfo,'relu')
+            elif relu:
+                fc = tf.nn.relu(fo,'relu')
+            else:
+                fc = fo
+            #op = tf.nn.relu_layer if relu else tf.nn.xw_plus_b
+            #fc = op(feed_in, weights, biases, name=scope.name)
             return fc
 
     @layer

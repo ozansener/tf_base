@@ -27,12 +27,15 @@ def train(hold_out, dev_name):
     print hold_out_s
     train_data = cifar10_data.read_data_sets('./data/', one_hot=True, hold_out_size=hold_out_s)
 
-    test_im = train_data.test.images
-    test_l = train_data.test.labels
+    # partial test accuracy
+    test_im = train_data.test.images[0:1000]
+    test_l = train_data.test.labels[0:1000]
 
     params, str_v = read_params('settings.json')
 
-    with tf.Session() as sesh:
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    with tf.Session(config=config) as sesh:
         cifar_train = Cifar10Trainer(learning_rate=params.learning_rate, device_name=dev_name, isdropout=params.dropout)
         print 'Initial Variable List:'
         print [tt.name for tt in tf.trainable_variables()]
@@ -43,6 +46,7 @@ def train(hold_out, dev_name):
 
         for batch_id in range(200000):
             im, l = train_data.train.next_batch(params.batch_size)
+            # this is onlt active if dropout is enabled, otherwise nothing at all
             if batch_id < 500:
                 kp = 1.0
             elif batch_id < 20000:
