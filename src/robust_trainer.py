@@ -15,7 +15,6 @@ class RobustTrainer(object):
         :return:
         """
         self.batch_size = 128
-        self.gamma = 0.5
 
         self.actual_network = Learner()
         self.adverserial_network = Adversery()
@@ -73,7 +72,7 @@ class RobustTrainer(object):
         small_batch = {'images':large_batch['images'][choices], 'labels':large_batch['labels'][choices]}
         return small_batch
 
-    def learning_step(self, session):
+    def learning_step(self, session, gamma):
         # this is the learning
         feat_values, per_im_loss = session.run([self.features, self.per_image_loss],
                                                feed_dict={self.ph_images: self.large_batch['images'],
@@ -88,7 +87,7 @@ class RobustTrainer(object):
         small_batch = RobustTrainer.sample_with_replacement(self.large_batch,
                                                             loss_estimates,
                                                             self.batch_size,
-                                                            self.gamma)
+                                                            gamma)
 
         _ = session.run([self.real_train_op], feed_dict={self.ph_images: small_batch['images'],
                                                          self.ph_labels: small_batch['labels']})
