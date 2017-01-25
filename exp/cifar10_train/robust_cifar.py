@@ -32,8 +32,10 @@ def train(hold_out, dev_name):
 
     params, str_v = read_params('settings.json')
 
-    with tf.Session() as sesh:
-        robust_cifar_train = RobustTrainer(params.learning_rate, params.learning_rate)
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    with tf.Session(config=config) as sesh:
+        robust_cifar_train = RobustTrainer(params.learning_rate, params.learning_rate, dev_name)
         print 'Initial Variable List:'
         print [tt.name for tt in tf.trainable_variables()]
         init = tf.global_variables_initializer()
@@ -43,7 +45,7 @@ def train(hold_out, dev_name):
 
         im, l = train_data.train.next_batch(params.batch_size*8)  # Sample a boosted set    
         for batch_id in range(200000):
-            #im, l = train_data.train.next_batch(params.batch_size*8)  # Sample a boosted set
+            im, l = train_data.train.next_batch(params.batch_size*8)  # Sample a boosted set
             if batch_id < 500:
                 kp = 1.0
             elif batch_id < 20000:
@@ -51,19 +53,23 @@ def train(hold_out, dev_name):
             else:
                 kp = 0.8
 
-            robust_cifar_train.assign_batch({'images':im, 'labels':l})
+            robust_cifar_train.assign_batch({'images': im, 'labels': l})
             # first epoch only observe then do staff
             if batch_id < 10000:
                 gamma = 1.0
             else:
                 gamma = 0.5
 
-            d =  robust_cifar_train.learning_step(sesh, gamma,batch_id)
-            sum_writer.add_summary(d, batch_id)
+            # if gamma is 1.0, this is classical training otherwise it is L_max
 
-            if batch_id %10 == 0:
+            # here we first try learn everything
+            create_summ = batch_id % 10 == 0
+            d = robust_cifar_train.learning_step(sesh, gamma, create_summ, True, True)
+
+            if create_summ:
                 loss, summ = robust_cifar_train.summary_step(im, l, sesh)
                 sum_writer.add_summary(summ, batch_id)
+                sum_writer.add_summary(d, batch_id)
 
             # save every 100th batch model
             if batch_id % 500 == 0:
