@@ -4,6 +4,7 @@ import tensorflow as tf
 from datetime import datetime
 import click
 import json
+import numpy
 
 def read_params(file_name):
     class Param(object):
@@ -22,26 +23,32 @@ def read_params(file_name):
 @click.command()
 @click.option('--hold_out', default=0, help='Training data size.')
 @click.option('--dev_name', default='/gpu:0', help='Device name to use.')
-def train(hold_out, dev_name):
+@click.option('--sample/--no-sample', default=True)
+def train(hold_out, dev_name, sample):
     hold_out_s = int(hold_out)
     print hold_out_s
     train_data = cifar10_data.read_data_sets('./data/', one_hot=True, hold_out_size=hold_out_s)
 
-    test_im = train_data.test.images
-    test_l = train_data.test.labels
+    test_im = train_data.test.images[0:1000]
+    test_l = train_data.test.labels[0:1000]
 
     params, str_v = read_params('settings.json')
 
+    num_b = 5 * numpy.ceil( train_data.train.images.shape[0] / ((1.0)*params.batch_size) )
+
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
+    config.allow_soft_placement = True
     with tf.Session(config=config) as sesh:
         robust_cifar_train = RobustTrainer(params.learning_rate, params.learning_rate, dev_name)
         print 'Initial Variable List:'
         print [tt.name for tt in tf.trainable_variables()]
+        print "Wait {} many batches".format(num_b)
+
         init = tf.global_variables_initializer()
         sesh.run(init)
         saver = tf.train.Saver(max_to_keep=100)
-        sum_writer = tf.summary.FileWriter("./dumps_rebost__hold_out_{}__{}/".format(hold_out_s,str_v), sesh.graph)
+        sum_writer = tf.summary.FileWriter("./dumps_robust__sample_{}__hold_out_{}__{}/".format(sample,hold_out_s,str_v), sesh.graph)
 
         im, l = train_data.train.next_batch(params.batch_size*8)  # Sample a boosted set    
         for batch_id in range(200000):
@@ -55,11 +62,12 @@ def train(hold_out, dev_name):
 
             robust_cifar_train.assign_batch({'images': im, 'labels': l})
             # first epoch only observe then do staff
-            if batch_id < 10000:
+            if batch_id < num_b:
                 gamma = 1.0
-            else:
+            elif sample:
                 gamma = 0.5
-
+            else:
+                gamma = 1.0
             # if gamma is 1.0, this is classical training otherwise it is L_max
 
             # here we first try learn everything
@@ -73,7 +81,7 @@ def train(hold_out, dev_name):
 
             # save every 100th batch model
             if batch_id % 500 == 0:
-                saver.save(sesh, 'models/cifar10_robust_model_hold_out_{}__{}'.format(hold_out_s,str_v), global_step=batch_id)
+                saver.save(sesh, 'models/cifar10_robust_{}_model_hold_out_{}__{}'.format(sample,hold_out_s,str_v), global_step=batch_id)
                 acc, test_sum = robust_cifar_train.test_step(test_im, test_l, sesh)
                 print "{}: step{}, test acc {}".format(datetime.now(), batch_id, acc)
                 sum_writer.add_summary(test_sum, batch_id)

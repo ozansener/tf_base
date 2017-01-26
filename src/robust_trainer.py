@@ -62,7 +62,6 @@ class RobustTrainer(object):
 
         tf.summary.scalar("summary_real_training_accuracy", self.real_accuracy)
         tf.summary.scalar("summary_real_loss", self.real_loss)
-        tf.summary.scalar("max per image loss in batch", tf.reduce_max(self.per_image_loss))
         self.summaries = tf.summary.merge_all()
         self.test_summary = tf.summary.scalar("summary_real_test_accuracy", self.real_accuracy)
 
@@ -80,6 +79,8 @@ class RobustTrainer(object):
         uniform_prob_list = numpy.ones((num_examples,1)) * uniform_prob
         bimodal_dist = (1-gamma) * loss_estimates.reshape((num_examples,1)) + gamma * uniform_prob_list
         bimodal_dist_flat = bimodal_dist[:, 0]
+        # this distribution might be distorted because of numerical error
+        bimodal_dist_flat = bimodal_dist_flat / bimodal_dist_flat.sum()
         choices = numpy.random.choice(num_examples, batch_size, replace=True, p=bimodal_dist_flat)
         small_batch = {'images': large_batch['images'][choices], 'labels': large_batch['labels'][choices]}
         return small_batch
@@ -97,7 +98,7 @@ class RobustTrainer(object):
         ce_lab = numpy.concatenate((per_im_loss, 1.0-per_im_loss), axis=1)
 
         if compute_adv_loss:
-            adv_summ, loss_estimates = session.run([self.adv_summ, self.adv_out], feed_dict={self.ph_features: feat_values,
+            adv_sum, loss_estimates = session.run([self.adv_summ, self.adv_out], feed_dict={self.ph_features: feat_values,
                                                                                              self.ph_per_image_loss: ce_lab,
                                                                                              self.phase: 0})
         else:
