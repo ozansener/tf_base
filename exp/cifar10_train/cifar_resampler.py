@@ -47,7 +47,6 @@ def train(hold_out, dev_name, sample, batch_id):
         saver.restore(sesh, 'models/cifar10_robust_{}_model_hold_out_{}__{}-{}'.format(sample,hold_out_s,str_v, batch_id))
         # here options, running the adv with more data (validation), learn adv with more data from scratch
         sum_writer = tf.summary.FileWriter("./dumps_robust__sample_{}__hold_out_{}__{}/".format(sample,hold_out_s,str_v), sesh.graph)
-
         robust_cifar_train.reinit_adverserial(sesh)
         b = -1
         for c in range(1000):
@@ -66,8 +65,8 @@ def train(hold_out, dev_name, sample, batch_id):
             robust_cifar_train.assign_batch({'images':im, 'labels':l})
             robust_cifar_train.learning_step(sesh, 0.5, False, True, False)
 
-        saver.save(sesh, 'models/sampler_robust_{}_model_hold_out_{}__{}'.format(sample,hold_out_s,str_v),
-                       global_step=batch_id)
+        saver.save(sesh, 'models/sampler_robust_{}_model_hold_out_{}__{}_{}'.format(sample,hold_out_s,str_v,batch_id),
+                       global_step=0)
         ap, gt = robust_cifar_train.active_sample(sesh,
                                                   {'images':train_data.hold_out.images,
                                                    'labels':train_data.hold_out.labels}, 5000)
