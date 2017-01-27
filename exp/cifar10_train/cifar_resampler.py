@@ -25,7 +25,8 @@ def read_params(file_name):
 @click.option('--hold_out', default=0, help='Training data size.')
 @click.option('--dev_name', default='/gpu:0', help='Device name to use.')
 @click.option('--sample/--no-sample', default=True)
-def train(hold_out, dev_name, sample):
+@click.option('--batch_id')
+def train(hold_out, dev_name, sample, batch_id):
     hold_out_s = int(hold_out)
     print hold_out_s
     train_data = cifar10_data.read_data_sets('./data/', one_hot=True, hold_out_size=hold_out_s)
@@ -43,15 +44,11 @@ def train(hold_out, dev_name, sample):
         robust_cifar_train = RobustTrainer(params.learning_rate, params.learning_rate, dev_name)
         # no need to initialize anything since ve are simply re-loading the data
         saver = tf.train.Saver(max_to_keep=100)
-        batch_id = 20000
         saver.restore(sesh, 'models/cifar10_robust_{}_model_hold_out_{}__{}-{}'.format(sample,hold_out_s,str_v, batch_id))
         # here options, running the adv with more data (validation), learn adv with more data from scratch
         sum_writer = tf.summary.FileWriter("./dumps_robust__sample_{}__hold_out_{}__{}/".format(sample,hold_out_s,str_v), sesh.graph)
 
-        robust_cifar_train.reinit_adam(sesh)        
-        #ap_wo_ft, gt_wo_ft = robust_cifar_train.active_sample(sesh,
-        #                                          {'images':train_data.hold_out.images,
-        #                                           'labels':train_data.hold_out.labels}, 5000)
+        robust_cifar_train.reinit_adverserial(sesh)
         b = -1
         for c in range(1000):
             b+=1
@@ -61,19 +58,21 @@ def train(hold_out, dev_name, sample):
                 valid_im = valid_im[perm]
                 valid_l = valid_l[perm]
                 b = 0
-            print b
+            print 'Sampling, retraining, batch ', b
             set_min=b*1000
             set_max=(b+1)*1000
             im = valid_im[set_min:set_max]
             l = valid_l[set_min:set_max]
             robust_cifar_train.assign_batch({'images':im, 'labels':l})
             robust_cifar_train.learning_step(sesh, 0.5, False, True, False)
-        saver.save(sesh, 'models/refine', global_step=0)
+
+        saver.save(sesh, 'models/sampler_robust_{}_model_hold_out_{}__{}'.format(sample,hold_out_s,str_v),
+                       global_step=batch_id)
         ap, gt = robust_cifar_train.active_sample(sesh,
                                                   {'images':train_data.hold_out.images,
                                                    'labels':train_data.hold_out.labels}, 5000)
- 
-        pickle.dump({'a':ap, 'gt':gt}, open('oz_ref.bn','wb'))
+        ch = RobustTrainer.samp(ap[:-5000], 5000, 0.01)
+        pickle.dump({'chosen': ch+hold_out}, open('chosen_data_{}_{}'.format(hold_out, sample), 'wb'))
 
 if __name__ == '__main__':
     train()

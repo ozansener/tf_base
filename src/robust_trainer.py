@@ -182,3 +182,18 @@ class RobustTrainer(object):
         with tf.control_dependencies(update_ops):
             self.adv_train_op = tf.train.AdamOptimizer(learning_rate=self.lr_adv).minimize(self.adv_loss)
         session.run(tf.variables_initializer(set(tf.all_variables()) - temp))
+
+    @staticmethod
+    def samp(f, n, gamma):
+        th = numpy.sort(f)[-n]
+        k = numpy.zeros(f.shape)
+        k[f>th] = 1
+        k = k / numpy.sum(k)
+        uniform_prob = 1.0 / f.shape[0]
+        num_examples = f.shape[0]
+        uniform_prob_list = numpy.ones((num_examples,1)) * uniform_prob
+        bimodal_dist = (1-gamma) * k.reshape((num_examples,1)) + gamma * uniform_prob_list
+        bimodal_dist_flat = bimodal_dist[:, 0]
+        bimodal_dist_flat = bimodal_dist_flat / bimodal_dist_flat.sum()
+        choices = numpy.random.choice(f.shape[0], n, replace=False, p=bimodal_dist_flat)
+        return choices
