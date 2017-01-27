@@ -136,3 +136,28 @@ class RobustTrainer(object):
                                 feed_dict={self.ph_images: images,
                                            self.ph_labels: labels})
         return acc, summ
+
+    def active_sample(self, session, data, how_many):
+        num_images = data['images'].shape[0]
+        num_batch = numpy.ceil(num_images*1.0/self.batch_size)
+        all_prob = numpy.zeros(num_images)
+        all_cp = numpy.zeros(num_images)
+        for b in range(num_batch):
+            set_min = b*self.batch_size
+            set_max = min((b+1)*self.batch_size, num_images)
+            if set_max > set_min:
+                im = data['images'][set_min:set_max]
+                l = data['labels'][set_min:set_max]
+                feat_values, per_im_loss_d = session.run([self.features, self.accuracy_per_im],
+                                                         feed_dict={self.ph_images: im,
+                                                                    self.ph_labels: l,
+                                                                    self.phase: 0})
+
+                loss_estimates = session.run([self.adv_out], feed_dict={self.ph_features: feat_values, self.phase: 0})
+                unnormalized_prob = loss_estimates[:, 0]
+                e_x = numpy.exp(unnormalized_prob - numpy.max(unnormalized_prob))
+                prob = e_x / e_x.sum()
+                all_prob[set_min:set_max] = prob
+                all_cp[set_min:set_max] = per_im_loss_d
+
+        return all_prob, all_cp
