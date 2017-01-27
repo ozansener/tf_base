@@ -23,6 +23,7 @@ class RobustTrainer(object):
         self.ph_per_image_loss = tf.placeholder(tf.float32, [None, 2])
         self.keep_prob = tf.placeholder(tf.float32)
         self.phase = tf.placeholder(tf.bool, name='phase')  # train or test for batch norm
+        self.lr_adv = learning_rate_adv
 
         with tf.device(device_name):
             real_net = VGG16Robust({'data': self.ph_images}, phase=self.phase)
@@ -98,7 +99,7 @@ class RobustTrainer(object):
         ce_lab = numpy.concatenate((per_im_loss, 1.0-per_im_loss), axis=1)
 
         if compute_adv_loss:
-            adv_sum, loss_estimates = session.run([self.adv_summ, self.adv_out], feed_dict={self.ph_features: feat_values,
+            adv_sum, loss_estimates = session.run([self.adv_summ, tf.nn.softmax(self.adv_out)], feed_dict={self.ph_features: feat_values,
                                                                                              self.ph_per_image_loss: ce_lab,
                                                                                              self.phase: 0})
         else:
@@ -139,7 +140,7 @@ class RobustTrainer(object):
 
     def active_sample(self, session, data, how_many):
         num_images = data['images'].shape[0]
-        num_batch = numpy.ceil(num_images*1.0/self.batch_size)
+        num_batch = int(numpy.ceil(num_images*1.0/self.batch_size))
         all_prob = numpy.zeros(num_images)
         all_cp = numpy.zeros(num_images)
         for b in range(num_batch):
@@ -153,11 +154,31 @@ class RobustTrainer(object):
                                                                     self.ph_labels: l,
                                                                     self.phase: 0})
 
-                loss_estimates = session.run([self.adv_out], feed_dict={self.ph_features: feat_values, self.phase: 0})
+                loss_estimates = session.run(tf.nn.softmax(self.adv_out), feed_dict={self.ph_features: feat_values, self.phase: 0})
                 unnormalized_prob = loss_estimates[:, 0]
-                e_x = numpy.exp(unnormalized_prob - numpy.max(unnormalized_prob))
-                prob = e_x / e_x.sum()
-                all_prob[set_min:set_max] = prob
+                #e_x = numpy.exp(unnormalized_prob - numpy.max(unnormalized_prob))
+                #prob = e_x / e_x.sum()
+                all_prob[set_min:set_max] = unnormalized_prob
                 all_cp[set_min:set_max] = per_im_loss_d
 
         return all_prob, all_cp
+
+    def reinit_adam(self, session):
+        temp = set(tf.all_variables())
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
+            self.adv_train_op = tf.train.AdamOptimizer(learning_rate=self.lr_adv).minimize(self.adv_loss)
+        session.run(tf.variables_initializer(set(tf.all_variables()) - temp))
+
+    def reinit_adverserial(self, session):
+        net_vars = tf.trainable_variables()
+        # this is a regularizer, a small weight decay
+        adv_v = [ v for v in net_vars if 'adv' in v.name ]
+        print 'Initializing ', [v.name for v in adv_v]
+        init = tf.variables_initializer(adv_v)
+        session.run(init)
+        temp = set(tf.all_variables())
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
+            self.adv_train_op = tf.train.AdamOptimizer(learning_rate=self.lr_adv).minimize(self.adv_loss)
+        session.run(tf.variables_initializer(set(tf.all_variables()) - temp))

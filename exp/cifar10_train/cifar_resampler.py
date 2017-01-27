@@ -5,6 +5,7 @@ from datetime import datetime
 import click
 import json
 import numpy
+import pickle
 
 def read_params(file_name):
     class Param(object):
@@ -28,6 +29,8 @@ def train(hold_out, dev_name, sample):
     hold_out_s = int(hold_out)
     print hold_out_s
     train_data = cifar10_data.read_data_sets('./data/', one_hot=True, hold_out_size=hold_out_s)
+    valid_im = train_data.hold_out.images[-5000:]
+    valid_l = train_data.hold_out.labels[-5000:]
 
     params, str_v = read_params('settings.json')
 
@@ -40,17 +43,37 @@ def train(hold_out, dev_name, sample):
         robust_cifar_train = RobustTrainer(params.learning_rate, params.learning_rate, dev_name)
         # no need to initialize anything since ve are simply re-loading the data
         saver = tf.train.Saver(max_to_keep=100)
+        batch_id = 20000
         saver.restore(sesh, 'models/cifar10_robust_{}_model_hold_out_{}__{}-{}'.format(sample,hold_out_s,str_v, batch_id))
         # here options, running the adv with more data (validation), learn adv with more data from scratch
         sum_writer = tf.summary.FileWriter("./dumps_robust__sample_{}__hold_out_{}__{}/".format(sample,hold_out_s,str_v), sesh.graph)
 
-        robust_cifar_train.assign_batch(
+        robust_cifar_train.reinit_adam(sesh)        
+        #ap_wo_ft, gt_wo_ft = robust_cifar_train.active_sample(sesh,
+        #                                          {'images':train_data.hold_out.images,
+        #                                           'labels':train_data.hold_out.labels}, 5000)
+        b = -1
+        for c in range(1000):
+            b+=1
+            if (b+1)*1000 > 5000:
+                perm = numpy.arange(5000)
+                numpy.random.shuffle(perm)
+                valid_im = valid_im[perm]
+                valid_l = valid_l[perm]
+                b = 0
+            print b
+            set_min=b*1000
+            set_max=(b+1)*1000
+            im = valid_im[set_min:set_max]
+            l = valid_l[set_min:set_max]
+            robust_cifar_train.assign_batch({'images':im, 'labels':l})
+            robust_cifar_train.learning_step(sesh, 0.5, False, True, False)
+        saver.save(sesh, 'models/refine', global_step=0)
         ap, gt = robust_cifar_train.active_sample(sesh,
-                                                  {'images': train_data.holdout.images,
-                                                   'labels': train_data.holdout.labels}, 5000)
-
-        print ap
-        print gt
+                                                  {'images':train_data.hold_out.images,
+                                                   'labels':train_data.hold_out.labels}, 5000)
+ 
+        pickle.dump({'a':ap, 'gt':gt}, open('oz_ref.bn','wb'))
 
 if __name__ == '__main__':
     train()
