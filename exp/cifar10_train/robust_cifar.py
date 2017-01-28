@@ -5,6 +5,8 @@ from datetime import datetime
 import click
 import json
 import numpy
+import pickle
+
 
 def read_params(file_name):
     class Param(object):
@@ -24,10 +26,17 @@ def read_params(file_name):
 @click.option('--hold_out', default=0, help='Training data size.')
 @click.option('--dev_name', default='/gpu:0', help='Device name to use.')
 @click.option('--sample/--no-sample', default=True)
-def train(hold_out, dev_name, sample):
+@click.option('--go_on/--no-go_on', default=False)
+def train(hold_out, dev_name, sample, go_on):
     hold_out_s = int(hold_out)
     print hold_out_s
-    train_data = cifar10_data.read_data_sets('./data/', one_hot=True, hold_out_size=hold_out_s)
+    if go_on:
+        c = pickle.load(open('chosen_data_{}_{}'.format(hold_out_s, sample)))
+        ch = c['chosen'] - hold_out_s
+        train_data = cifar10_data.read_data_sets('./data/',
+                                                 one_hot=True, hold_out_size=hold_out_s, active=True, choices=ch)
+    else:
+        train_data = cifar10_data.read_data_sets('./data/', one_hot=True, hold_out_size=hold_out_s)
 
     test_im = train_data.test.images[0:1000]
     test_l = train_data.test.labels[0:1000]
@@ -48,7 +57,7 @@ def train(hold_out, dev_name, sample):
         init = tf.global_variables_initializer()
         sesh.run(init)
         saver = tf.train.Saver(max_to_keep=100)
-        sum_writer = tf.summary.FileWriter("./dumps_robust__sample_{}__hold_out_{}__{}/".format(sample,hold_out_s,str_v), sesh.graph)
+        sum_writer = tf.summary.FileWriter("./dumps_robust__go_on_{}__sample_{}__hold_out_{}__{}/".format(go_on,sample,hold_out_s,str_v), sesh.graph)
 
         im, l = train_data.train.next_batch(params.batch_size*8)  # Sample a boosted set    
         for batch_id in range(200000):
@@ -81,7 +90,7 @@ def train(hold_out, dev_name, sample):
 
             # save every 100th batch model
             if batch_id % 500 == 0:
-                saver.save(sesh, 'models/cifar10_robust_{}_model_hold_out_{}__{}'.format(sample,hold_out_s,str_v), global_step=batch_id)
+                saver.save(sesh, 'models/cifar10_go_on_{}_robust_{}_model_hold_out_{}__{}'.format(go_on,sample,hold_out_s,str_v), global_step=batch_id)
                 acc, test_sum = robust_cifar_train.test_step(test_im, test_l, sesh)
                 print "{}: step{}, test acc {}".format(datetime.now(), batch_id, acc)
                 sum_writer.add_summary(test_sum, batch_id)

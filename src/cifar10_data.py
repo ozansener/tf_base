@@ -175,7 +175,11 @@ class DataSet(object):
         return self._images[start:end], self._labels[start:end]
 
 
-def read_data_sets(train_dir, one_hot=False, hold_out_size=0):
+def read_data_sets(train_dir,
+                   one_hot=True,
+                   hold_out_size=0,
+                   active=False,
+                   choices=None):
     class DataSets(object):
         pass
 
@@ -183,15 +187,22 @@ def read_data_sets(train_dir, one_hot=False, hold_out_size=0):
 
     DATA_SET_NAME = "cifar-10-python.tar.gz"
     local_file = maybe_download(DATA_SET_NAME,train_dir)
-    im,l,h_im,h_l = extract_train_data(train_dir, one_hot, hold_out_size)
+    im, l, h_im, h_l = extract_train_data(train_dir, one_hot, hold_out_size)
     if hold_out_size > 0:
-        data_sets.train = DataSet(h_im,h_l)
-        data_sets.hold_out = DataSet(im,l)
-        im_t,l_t = extract_test_data(train_dir, one_hot)
-        data_sets.test = DataSet(im_t,l_t)
+        if active:
+            # this is active
+            extra_im = h_im[choices]
+            extra_l = h_l[choices]
+            f_im = numpy.concatenate((h_im, extra_im), axis=0)
+            f_l = numpy.concatenate((h_l, extra_l), axis=0)
+            data_sets.train = DataSet(f_im, f_l)
+            data_sets.hold_out = DataSet(im, l)
+            im_t, l_t = extract_test_data(train_dir, one_hot)
+            data_sets.test = DataSet(im_t, l_t)
     else:
-        data_sets.train = DataSet(im,l)
-        im_t,l_t = extract_test_data(train_dir, one_hot)
-        data_sets.test = DataSet(im_t,l_t)
+        data_sets.train = DataSet(im, l)
+        im_t, l_t = extract_test_data(train_dir, one_hot)
+        data_sets.test = DataSet(im_t, l_t)
 
     return data_sets
+
