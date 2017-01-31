@@ -57,7 +57,7 @@ def train(hold_out, dev_name, sample, go_on):
         init = tf.global_variables_initializer()
         sesh.run(init)
         saver = tf.train.Saver(max_to_keep=100)
-        sum_writer = tf.summary.FileWriter("./dumps_robust__go_on_{}__sample_{}__hold_out_{}__{}/".format(go_on,sample,hold_out_s,str_v), sesh.graph)
+        sum_writer = tf.summary.FileWriter("./dumps2_robust__go_on_{}__sample_{}__hold_out_{}__{}/".format(go_on,sample,hold_out_s,str_v), sesh.graph)
 
         im, l = train_data.train.next_batch(params.batch_size*8)  # Sample a boosted set    
         for batch_id in range(200000):

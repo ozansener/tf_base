@@ -160,6 +160,7 @@ class DataSet(object):
         start = self._index_in_epoch
         self._index_in_epoch += batch_size
         if self._index_in_epoch > self._num_examples:
+            #print('Re-order the dataset')
             # Finished epoch
             self._epochs_completed += 1
             # Shuffle the data
@@ -191,14 +192,19 @@ def read_data_sets(train_dir,
     if hold_out_size > 0:
         if active:
             # this is active
-            extra_im = h_im[choices]
-            extra_l = h_l[choices]
+            extra_im = im[choices]
+            extra_l = l[choices]
             f_im = numpy.concatenate((h_im, extra_im), axis=0)
             f_l = numpy.concatenate((h_l, extra_l), axis=0)
             data_sets.train = DataSet(f_im, f_l)
             data_sets.hold_out = DataSet(im, l)
             im_t, l_t = extract_test_data(train_dir, one_hot)
             data_sets.test = DataSet(im_t, l_t)
+        else:
+            data_sets.train = DataSet(h_im,h_l)
+            data_sets.hold_out = DataSet(im,l)
+            im_t,l_t = extract_test_data(train_dir, one_hot)
+            data_sets.test = DataSet(im_t,l_t)
     else:
         data_sets.train = DataSet(im, l)
         im_t, l_t = extract_test_data(train_dir, one_hot)

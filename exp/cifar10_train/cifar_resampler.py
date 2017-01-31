@@ -70,8 +70,8 @@ def train(hold_out, dev_name, sample, batch_id):
         ap, gt = robust_cifar_train.active_sample(sesh,
                                                   {'images':train_data.hold_out.images,
                                                    'labels':train_data.hold_out.labels}, 5000)
-        ch = RobustTrainer.samp(ap[:-5000], 5000, 0.01)
-        pickle.dump({'chosen': ch+hold_out}, open('chosen_data_{}_{}'.format(hold_out, sample), 'wb'))
+        ch = RobustTrainer.samp(1 - gt[:-5000], 5000, 0.25)
+        pickle.dump({'chosen': ch+hold_out, 'e':ap, 'gt':gt}, open('chosen_data_{}_{}'.format(hold_out, sample), 'wb'))
 
 if __name__ == '__main__':
     train()

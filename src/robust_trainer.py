@@ -184,9 +184,9 @@ class RobustTrainer(object):
 
     @staticmethod
     def samp(f, n, gamma):
-        th = numpy.sort(f)[-n]
+        #th = numpy.sort(f)[-n]
         k = numpy.zeros(f.shape)
-        k[f>th] = 1.0
+        k[f>0] = 1.0
         k = k / numpy.sum(k)
         uniform_prob = 1.0 / f.shape[0]
         num_examples = f.shape[0]
