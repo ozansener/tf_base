@@ -15,7 +15,7 @@ class AdverserialTrainer(object):
         real_weight_decay = 0.002
         self.ph_images = tf.placeholder(tf.float32, [None, 32, 32, 3])
         self.ph_labels = tf.placeholder(tf.float32, [None, 10])
-        self.ph_dom = tf.placeholder(tf.float32, [None, 2])
+        self.ph_domains = tf.placeholder(tf.float32, [None, 2])
         self.keep_prob = tf.placeholder(tf.float32)
         self.phase = tf.placeholder(tf.bool, name='phase')  # train or test for batch norm
         self.lr_adv = learning_rate_adv
@@ -82,7 +82,8 @@ class AdverserialTrainer(object):
     def learning_step(self, session):
         # compute features and loss for current batch
         _ = session.run([self.real_train_op], feed_dict={self.ph_images: self.real_batch['images'],
-                                                         self.ph_labels: self.real_batch['labels']})
+                                                         self.ph_labels: self.real_batch['labels'],
+                                                         self.phase: 0})
 
         im = numpy.concatenate((self.real_batch['images'], self.adv_batch['images']), axis=0)
         l = numpy.concatenate(
@@ -90,12 +91,12 @@ class AdverserialTrainer(object):
             axis=0)
         ll = numpy.concatenate((l, 1-l), axis=1)
 
-        _ = session.run([self.adv_train_op], feed_dict={self.ph_images: im, self.ph_domains: ll})
+        _ = session.run([self.adv_train_op], feed_dict={self.ph_images: im, self.ph_domains: ll, self.phase: 1})
 
     def summary_step(self, session):
         summ, loss = session.run([self.summaries, self.real_loss],
                                  feed_dict={self.ph_images: self.real_batch['images'],
-                                            self.ph_labels: self.real_batch['labels']})
+                                            self.ph_labels: self.real_batch['labels'], self.phase: 0})
 
         im = numpy.concatenate((self.real_batch['images'], self.adv_batch['images']), axis=0)
         l = numpy.concatenate(
@@ -105,13 +106,13 @@ class AdverserialTrainer(object):
 
         adv_summ, adv_loss = session.run([self.adv_summ, self.adv_loss],
                                          feed_dict={self.ph_images: im,
-                                                    self.ph_domains: ll})
+                                                    self.ph_domains: ll, self.phase: 0})
 
         return loss, summ, adv_loss, adv_summ
 
     def test_step(self, images, labels, session):
         acc, summ = session.run([self.real_accuracy, self.test_summary],
                                 feed_dict={self.ph_images: images,
-                                           self.ph_labels: labels})
+                                           self.ph_labels: labels, self.phase: 0})
         return acc, summ
 
