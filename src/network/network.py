@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+from flip_gradient import flip_gradient
 
 DEFAULT_PADDING = 'SAME'
 
@@ -105,6 +106,13 @@ class Network(object):
     def validate_padding(self, padding):
         '''Verifies that the padding is one of the supported ones.'''
         assert padding in ('SAME', 'VALID')
+
+    @layer
+    def flip_grad(self,
+                  input,
+                  name):
+        inp_flip = flip_gradient(input)
+        return inp_flip
 
     @layer
     def conv(self,
