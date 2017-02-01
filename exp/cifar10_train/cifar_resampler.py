@@ -67,11 +67,14 @@ def train(hold_out, dev_name, sample, batch_id):
 
         saver.save(sesh, 'models/sampler_robust_{}_model_hold_out_{}__{}_{}'.format(sample,hold_out_s,str_v,batch_id),
                        global_step=0)
-        ap, gt = robust_cifar_train.active_sample(sesh,
+        ap, gt,f,v = robust_cifar_train.active_sample(sesh,
                                                   {'images':train_data.hold_out.images,
                                                    'labels':train_data.hold_out.labels}, 5000)
+        ap_t, gt_t,f_t,v_t = robust_cifar_train.active_sample(sesh,
+                                                  {'images':train_data.train.images,
+                                                   'labels':train_data.train.labels}, 5000)
         ch = RobustTrainer.samp(1 - gt[:-5000], 5000, 0.25)
-        pickle.dump({'chosen': ch+hold_out, 'e':ap, 'gt':gt}, open('chosen_data_{}_{}'.format(hold_out, sample), 'wb'))
+        pickle.dump({'chosen': ch+hold_out, 'e':ap, 'gt':gt,'f':f,'l':v,'gt_f':f_t,'gt_g':gt_t,'gt_l':v_t,'gt_gt':gt_t}, open('chosen_data_{}_{}'.format(hold_out, sample), 'wb'))
 
 if __name__ == '__main__':
     train()

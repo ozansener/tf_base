@@ -142,6 +142,8 @@ class RobustTrainer(object):
         num_batch = int(numpy.ceil(num_images*1.0/self.batch_size))
         all_prob = numpy.zeros(num_images)
         all_cp = numpy.zeros(num_images)
+        all_feat = numpy.zeros((num_images,512))
+        all_l = numpy.zeros((num_images,10))
         for b in range(num_batch):
             set_min = b*self.batch_size
             set_max = min((b+1)*self.batch_size, num_images)
@@ -159,8 +161,9 @@ class RobustTrainer(object):
                 #prob = e_x / e_x.sum()
                 all_prob[set_min:set_max] = unnormalized_prob
                 all_cp[set_min:set_max] = per_im_loss_d
-
-        return all_prob, all_cp
+                all_feat[set_min:set_max] = feat_values
+                all_l[set_min:set_max] = l
+        return all_prob, all_cp, all_feat, all_l
 
     def reinit_adam(self, session):
         temp = set(tf.all_variables())
