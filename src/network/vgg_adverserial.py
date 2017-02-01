@@ -27,7 +27,6 @@ class VGG16Adverserial(Network):
              .fc(512, name='fc6')
              .fc(10, relu=False, name='fc7'))
 
-
         (self.feed('feat')
             .flip_grad(name='flip_grad')
             .fc(512, name='adv_fc1', with_bn=True)
