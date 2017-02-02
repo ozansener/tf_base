@@ -48,7 +48,7 @@ def train(hold_out, dev_name, sample, go_on):
     config.gpu_options.allow_growth = True
     config.allow_soft_placement = True
     with tf.Session(config=config) as sesh:
-        robust_cifar_train = AdverserialTrainer(params.learning_rate, params.learning_rate, dev_name)
+        robust_cifar_train = AdverserialTrainer(params.learning_rate, 0.1*params.learning_rate, dev_name)
         print 'Initial Variable List:'
         print [tt.name for tt in tf.trainable_variables()]
 
@@ -62,11 +62,13 @@ def train(hold_out, dev_name, sample, go_on):
             im, l = train_data.train.next_batch(params.batch_size)  # Sample a boosted set
             adv_im, _ = train_data.hold_out.next_batch(params.batch_size)
 
+            flip_f = float(batch_id)/200000.0
+
             robust_cifar_train.assign_batch({'images': im, 'labels': l},{'images': adv_im})
             # first epoch only observe then do staff
 
             create_summ = batch_id % 10 == 0
-            robust_cifar_train.learning_step(sesh)
+            robust_cifar_train.learning_step(sesh, flip_f)
 
             if create_summ:
                 loss, summ, a_l, a_s = robust_cifar_train.summary_step(sesh)

@@ -2,7 +2,7 @@ from network import Network
 
 
 class VGG16Adverserial(Network):
-    def setup(self):
+    def setup_with_dropout(self,factor):
         (self.feed('data')
              .conv(3, 3, 64, 1, 1, name='conv1_1')
              .conv(3, 3, 64, 1, 1, name='conv1_2')
@@ -24,11 +24,10 @@ class VGG16Adverserial(Network):
              .max_pool(2, 2, 2, 2, name='feat'))
 
         (self.feed('feat')
-             .fc(512, name='fc6')
+             .fc(512, name='fc6', with_bn=True)
              .fc(10, relu=False, name='fc7'))
 
         (self.feed('feat')
-            .flip_grad(name='flip_grad')
-            .fc(512, name='adv_fc1', with_bn=True)
-            .fc(512, name='adv_fc2', with_bn=True)
+            .flip_grad(name='flip_grad',l=factor)
+            .fc(512, name='adv_fc2',with_bn=True)
             .fc(2, relu=False, name='adv_fc3'))

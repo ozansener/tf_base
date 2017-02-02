@@ -19,9 +19,10 @@ class AdverserialTrainer(object):
         self.keep_prob = tf.placeholder(tf.float32)
         self.phase = tf.placeholder(tf.bool, name='phase')  # train or test for batch norm
         self.lr_adv = learning_rate_adv
+        self.flip_factor = tf.placeholder(tf.float32)
 
         with tf.device(device_name):
-            real_net = VGG16Adverserial({'data': self.ph_images}, phase=self.phase)
+            real_net = VGG16Adverserial({'data': self.ph_images}, phase=self.phase, keep_prob=self.flip_factor)
             class_pred = real_net.layers['fc7']
             domain_pred = real_net.layers['adv_fc3']
             real_pred_sm = tf.nn.softmax(class_pred)
@@ -32,7 +33,7 @@ class AdverserialTrainer(object):
                                      if 'bias' not in v.name and 'adv' not in v.name]) * real_weight_decay
 
             per_image_loss = tf.nn.softmax_cross_entropy_with_logits(class_pred, self.ph_labels)
-            self.real_loss = tf.reduce_mean(per_image_loss, 0) + real_l2_loss
+            self.real_loss = tf.reduce_mean(per_image_loss, 0) #+ real_l2_loss
 
             # this is simply adding batch norm moving average to train operations
             update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
@@ -79,11 +80,11 @@ class AdverserialTrainer(object):
         small_batch = {'images': large_batch['images'][choices], 'labels': large_batch['labels'][choices]}
         return small_batch
 
-    def learning_step(self, session):
-        # compute features and loss for current batch
+    def learning_step(self, session, batch_percent):
+        fact = 2. / (1. + numpy.exp(-10. * batch_percent)) - 1
         _ = session.run([self.real_train_op], feed_dict={self.ph_images: self.real_batch['images'],
                                                          self.ph_labels: self.real_batch['labels'],
-                                                         self.phase: 0})
+                                                         self.phase: 1})
 
         im = numpy.concatenate((self.real_batch['images'], self.adv_batch['images']), axis=0)
         l = numpy.concatenate(
@@ -91,7 +92,8 @@ class AdverserialTrainer(object):
             axis=0)
         ll = numpy.concatenate((l, 1-l), axis=1)
 
-        _ = session.run([self.adv_train_op], feed_dict={self.ph_images: im, self.ph_domains: ll, self.phase: 1})
+        _ = session.run([self.adv_train_op], feed_dict={self.ph_images: im, self.ph_domains: ll, self.phase: 1, self.flip_factor:fact})
+        #print 'LS', self.real_batch['images'].shape, self.adv_batch['images'].shape
 
     def summary_step(self, session):
         summ, loss = session.run([self.summaries, self.real_loss],

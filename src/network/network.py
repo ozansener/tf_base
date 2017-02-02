@@ -110,8 +110,9 @@ class Network(object):
     @layer
     def flip_grad(self,
                   input,
+                  l,
                   name):
-        inp_flip = flip_gradient(input)
+        inp_flip = flip_gradient(input,l)
         return inp_flip
 
     @layer
