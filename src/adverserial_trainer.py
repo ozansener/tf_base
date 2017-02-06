@@ -20,12 +20,15 @@ class AdverserialTrainer(object):
         self.phase = tf.placeholder(tf.bool, name='phase')  # train or test for batch norm
         self.lr_adv = learning_rate_adv
         self.flip_factor = tf.placeholder(tf.float32)
+        self.learning_rate = tf.placeholder(tf.float32)
 
         with tf.device(device_name):
             real_net = VGG16Adverserial({'data': self.ph_images}, phase=self.phase, keep_prob=self.flip_factor)
             class_pred = real_net.layers['fc7']
             domain_pred = real_net.layers['adv_fc3']
             real_pred_sm = tf.nn.softmax(class_pred)
+
+            self.features = tf.reshape(real_net.layers['feat'],[-1,512])
 
             real_net_vars = tf.trainable_variables()
             real_l2_loss = tf.add_n([tf.nn.l2_loss(v)
@@ -38,7 +41,7 @@ class AdverserialTrainer(object):
             # this is simply adding batch norm moving average to train operations
             update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
             with tf.control_dependencies(update_ops):
-                self.real_train_op = tf.train.AdamOptimizer(learning_rate=learning_rate_net).minimize(self.real_loss)
+                self.real_train_op = tf.train.MomentumOptimizer(self.learning_rate,0.9).minimize(self.real_loss)
 
             correct_prediction = tf.equal(tf.argmax(real_pred_sm, 1), tf.argmax(self.ph_labels, 1))
             self.accuracy_per_im = tf.cast(correct_prediction, "float")
@@ -52,7 +55,7 @@ class AdverserialTrainer(object):
             self.adv_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(domain_pred, self.ph_domains), 0)
             update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
             with tf.control_dependencies(update_ops):
-                self.adv_train_op = tf.train.AdamOptimizer(learning_rate=learning_rate_adv).minimize(self.adv_loss)
+                self.adv_train_op = tf.train.MomentumOptimizer(self.learning_rate,0.9).minimize(self.adv_loss)
 
         tf.summary.scalar("summary_real_training_accuracy", self.real_accuracy)
         tf.summary.scalar("summary_real_loss", self.real_loss)
@@ -82,9 +85,10 @@ class AdverserialTrainer(object):
 
     def learning_step(self, session, batch_percent):
         fact = 2. / (1. + numpy.exp(-10. * batch_percent)) - 1
+        lr = 0.01 / (1. + 10 * batch_percent)**0.75
         _ = session.run([self.real_train_op], feed_dict={self.ph_images: self.real_batch['images'],
                                                          self.ph_labels: self.real_batch['labels'],
-                                                         self.phase: 1})
+                                                         self.phase: 1, self.learning_rate: lr})
 
         im = numpy.concatenate((self.real_batch['images'], self.adv_batch['images']), axis=0)
         l = numpy.concatenate(
@@ -92,7 +96,7 @@ class AdverserialTrainer(object):
             axis=0)
         ll = numpy.concatenate((l, 1-l), axis=1)
 
-        _ = session.run([self.adv_train_op], feed_dict={self.ph_images: im, self.ph_domains: ll, self.phase: 1, self.flip_factor:fact})
+        _ = session.run([self.adv_train_op], feed_dict={self.ph_images: im, self.ph_domains: ll, self.phase: 1, self.flip_factor:fact, self.learning_rate:lr})
         #print 'LS', self.real_batch['images'].shape, self.adv_batch['images'].shape
 
     def summary_step(self, session):
@@ -118,3 +122,22 @@ class AdverserialTrainer(object):
                                            self.ph_labels: labels, self.phase: 0})
         return acc, summ
 
+    def active_sample(self, session, data, how_many):
+        num_images = data['images'].shape[0]
+        num_batch = int(numpy.ceil(num_images*1.0/self.batch_size))
+        all_feat = numpy.zeros((num_images,512))
+        all_l = numpy.zeros((num_images,10))
+        for b in range(num_batch):
+            set_min = b*self.batch_size
+            set_max = min((b+1)*self.batch_size, num_images)
+            if set_max > set_min:
+                im = data['images'][set_min:set_max]
+                l = data['labels'][set_min:set_max]
+                feat_values = session.run(self.features,
+                                                         feed_dict={self.ph_images: im,
+                                                                    self.ph_labels: l,
+                                                                    self.phase: 0})
+
+                all_feat[set_min:set_max] = feat_values
+                all_l[set_min:set_max] = l
+        return all_feat, all_l
