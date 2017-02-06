@@ -22,7 +22,6 @@ def read_params(file_name):
 
     return params, str_v
 
-
 @click.command()
 @click.option('--hold_out', default=0, help='Training data size.')
 @click.option('--dev_name', default='/gpu:0', help='Device name to use.')
@@ -32,8 +31,8 @@ def train(hold_out, dev_name, sample, go_on):
     hold_out_s = int(hold_out)
     print hold_out_s
     if go_on:
-        c = pickle.load(open('chosen_data_{}_{}'.format(hold_out_s, sample)))
-        ch = c['chosen'] - hold_out_s
+        c = pickle.load(open('chosen_ball.bn'))
+        ch = c['all']
         train_data = cifar10_data.read_data_sets('./data/',
                                                  one_hot=True, hold_out_size=hold_out_s, active=True, choices=ch)
     else:
@@ -43,7 +42,7 @@ def train(hold_out, dev_name, sample, go_on):
     test_l = train_data.test.labels[0:1000]
 
     params, str_v = read_params('settings.json')
-
+    print train_data.train.images.shape, train_data.hold_out.images.shape
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
     config.allow_soft_placement = True
